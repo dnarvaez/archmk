@@ -9,7 +9,7 @@ build_dir="$base_dir"/build
 conf_dir="$base_dir"/conf
 work_dir="$base_dir"/work
 root_dir="$work_dir"/root
-repo_dir="$work_dir"/repo
+repo_dir="$base_dir"/out/repo
 
 . "$conf_dir"/archmk.conf
 
@@ -19,11 +19,11 @@ if [ ! -d "$root_dir" ]; then
     systemd-nspawn -D "$root_dir" bash -c \
         "groupadd archmk -g $SUDO_GID; \
          useradd archmk -u $SUDO_UID -g $SUDO_GID"
+else
+    systemd-nspawn -D "$root_dir" pacman -Suy
 fi
 
-rm -rf "$repo_dir"
-mkdir -p "$repo_dir"
-pushd "$build_dir"
+rm -f "$repo_dir"/*
 
 for module in $MODULES
 do
@@ -41,14 +41,14 @@ do
     fi
 
     systemd-nspawn -D "$copy_dir" --bind="$base_dir":/archmk \
-        bash -c "cd /archmk/build/$module; makepkg -soe --noconfirm --asroot"
+        bash -c "cd /archmk/build/$module; \
+                 makepkg -soe --noconfirm --asroot"
 
-    systemd-nspawn -D "$copy_dir" -u $SUDO_UID --bind="$base_dir":/archmk \
-        bash -c "cd /archmk/build/$module; makepkg -ef"
-
-    pushd $module
-    cp $(ls -t *.pkg.tar.xz | head -n 1) "$repo_dir"
-    popd
+    systemd-nspawn -D "$copy_dir" -u $SUDO_UID \
+        --bind="$base_dir":/archmk --bind="$repo_dir":/repo \
+        bash -c "cd /archmk/build/$module;
+                 makepkg -ef; \
+                 pkg_name=\$(ls -t *.pkg.tar.xz | head -n 1); \
+                 cp -f \$pkg_name /repo;
+                 repo-add /repo/$REPO.db.tar.gz /repo/\$pkg_name"
 done
-
-repo-add "$repo_dir"/$REPO.db.tar.gz "$repo_dir"/*
