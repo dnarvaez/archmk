@@ -19,8 +19,6 @@ if [ ! -d "$root_dir" ]; then
     systemd-nspawn -D "$root_dir" bash -c \
         "groupadd archmk -g $SUDO_GID; \
          useradd archmk -u $SUDO_UID -g $SUDO_GID"
-
-    echo "\n[$REPO]\nServer = file:///$REPO" > "$root_dir"/etc/pacman.conf
 fi
 
 rm -rf "$repo_dir"
@@ -35,6 +33,11 @@ do
         rsync -aqWx --delete "$root_dir"/ "$copy_dir"
     else
         systemd-nspawn -D "$copy_dir" pacman -Suy
+    fi
+
+    if [ -f "$repo_dir"/$REPO.db.tar.gz ]; then
+        echo -e "\n[$REPO]\nServer = file:///archmk/repo" >> \
+            "$copy_dir"/etc/pacman.conf
     fi
 
     systemd-nspawn -D "$copy_dir" --bind="$base_dir":/archmk \
