@@ -1,0 +1,51 @@
+#!/usr/bin/bash
+
+set -e
+set -x
+
+base_dir="$(pwd)"
+source_dir="$base_dir"/source
+build_dir="$base_dir"/build
+conf_dir="$base_dir"/conf
+work_dir="$base_dir"/work
+root_dir="$work_dir"/root
+repo_dir="$work_dir"/repo
+
+. "$conf_dir"/archmk.conf
+
+if [ ! -d "$root_dir" ]; then
+    mkarchroot -C "$conf_dir"/pacman.conf "$root_dir" base-devel git
+
+    systemd-nspawn -D "$root_dir" bash -c \
+        "groupadd archmk -g $SUDO_GID; \
+         useradd archmk -u $SUDO_UID -g $SUDO_GID"
+
+    echo "\n[$REPO]\nServer = file:///$REPO" > "$root_dir"/etc/pacman.conf
+fi
+
+rm -rf "$repo_dir"
+mkdir -p "$repo_dir"
+pushd "$build_dir"
+
+for module in $MODULES
+do
+    copy_dir="$work_dir"/$module
+
+    if [ ! -d "$copy_dir" ]; then
+        rsync -aqWx --delete "$root_dir"/ "$copy_dir"
+    else
+        systemd-nspawn -D "$copy_dir" pacman -Suy
+    fi
+
+    systemd-nspawn -D "$copy_dir" --bind="$base_dir":/archmk \
+        bash -c "cd /archmk/build/$module; makepkg -soe --noconfirm --asroot"
+
+    systemd-nspawn -D "$copy_dir" -u $SUDO_UID --bind="$base_dir":/archmk \
+        bash -c "cd /archmk/build/$module; makepkg -ef"
+
+    pushd $module
+    cp $(ls -t *.pkg.tar.xz | head -n 1) "$repo_dir"
+    popd
+done
+
+repo-add "$repo_dir"/$REPO.db.tar.gz "$repo_dir"/*
