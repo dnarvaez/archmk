@@ -1,0 +1,21 @@
+#!/usr/bin/bash
+
+set -e
+set -x
+
+base_dir="$(pwd)"
+work_dir="$base_dir"/work
+os_dir="$work_dir"/os
+repo_dir="$base_dir"/out/repo
+conf_dir="$base_dir"/conf
+
+. "$conf_dir"/archmk.conf
+
+cp -f "$conf_dir"/pacman.conf "$work_dir"
+
+echo -e "\n[$REPO]\nSigLevel = Never\nServer = file://$repo_dir" >> \
+    "$work_dir"/pacman.conf
+
+rm -rf "$os_dir"
+mkdir -p "$os_dir"
+pacstrap -dcC "$work_dir"/pacman.conf "$work_dir"/os $PKGS

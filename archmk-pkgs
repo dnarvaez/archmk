@@ -20,7 +20,7 @@ if [ ! -d "$root_dir" ]; then
         "groupadd archmk -g $SUDO_GID; \
          useradd archmk -u $SUDO_UID -g $SUDO_GID"
 else
-    systemd-nspawn -D "$root_dir" pacman -Suy
+    systemd-nspawn -D "$root_dir" pacman -Suy --noconfirm
 fi
 
 rm -f "$repo_dir"/*
@@ -32,11 +32,12 @@ do
     if [ ! -d "$copy_dir" ]; then
         rsync -aqWx --delete "$root_dir"/ "$copy_dir"
     else
-        systemd-nspawn -D "$copy_dir" pacman -Suy
+        systemd-nspawn -D "$copy_dir" pacman -Suy --noconfirm
     fi
 
     if [ -f "$repo_dir"/$REPO.db.tar.gz ]; then
-        echo -e "\n[$REPO]\nServer = file:///archmk/repo" >> \
+        repo_url=file:///archmk/repo
+        echo -e "\n[$REPO]\nSigLevel = Never\nServer = $repo_url" >> \
             "$copy_dir"/etc/pacman.conf
     fi
 
