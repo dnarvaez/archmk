@@ -34,7 +34,7 @@ ostree --repo="$ostree_dir" commit --tree=dir="$os_dir" --branch=master \
     --subject "Update"
 
 rm -f "$image_path"
-truncate -s 1GB "$image_path"
+truncate -s 5GB "$image_path"
 
 parted "$image_path" mklabel msdos
 parted "$image_path" mkpart primary ext4 0% 10%
@@ -44,9 +44,9 @@ parted "$image_path" set 1 boot on
 modprobe loop
 
 losetup /dev/loop0 "$image_path" -o $((2048 * 512)) \
-    --sizelimit $((96256 * 512))
-losetup /dev/loop1 "$image_path" -o $((194560 * 512)) \
-    --sizelimit $((878592 * 512))
+    --sizelimit $((523264 * 512))
+losetup /dev/loop1 "$image_path" -o $((1048576 * 512)) \
+    --sizelimit $((4718592 * 512))
 
 sysroot=/mnt
 
