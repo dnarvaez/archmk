@@ -13,7 +13,18 @@ image_path="$out_dir"/ostree.img
 
 . "$conf_dir"/archmk.conf
 
+arch-chroot "$os_dir" mkinitcpio -c /etc/ostree-mkinitcpio.conf \
+    -g /boot/initramfs-linux.img
+
 mkdir -p "$os_dir"/sysroot
+
+boot_dir="$os_dir"/boot
+
+checksum=$(cat "$boot_dir"/initramfs-linux.img "$boot_dir"/vmlinuz-linux | \
+           sha256sum | cut -d' ' -f 1)
+
+mv "$boot_dir"/initramfs-linux.img "$boot_dir"/initramfs-$checksum
+mv "$boot_dir"/vmlinuz-linux "$boot_dir"/vmlinux-$checksum
 
 if [ ! -d "$ostree_dir" ]; then
     ostree --repo="$ostree_dir" init
@@ -28,10 +39,14 @@ truncate -s 1GB "$image_path"
 parted "$image_path" mklabel msdos
 parted "$image_path" mkpart primary ext4 0% 10%
 parted "$image_path" mkpart primary ext4 10% 100%
+parted "$image_path" set 1 boot on
+
+modprobe loop
 
 losetup /dev/loop0 "$image_path" -o $((2048 * 512)) \
     --sizelimit $((96256 * 512))
-losetup /dev/loop1 "$image_path" -o $((194560 * 512))
+losetup /dev/loop1 "$image_path" -o $((194560 * 512)) \
+    --sizelimit $((878592 * 512))
 
 sysroot=/mnt
 
@@ -44,19 +59,26 @@ mount /dev/loop1 "$sysroot"
 mkdir -p "$sysroot"/boot
 mount /dev/loop0 "$sysroot"/boot
 
+mkdir "$sysroot"/boot/loader.0
+touch "$sysroot"/boot/loader.0/syslinux.cfg
+ln -s loader.0 "$sysroot"/boot/loader
+
 mkdir "$sysroot"/boot/syslinux
 ln -s ../loader/syslinux.cfg "$sysroot"/boot/syslinux/syslinux.cfg
 
-mkdir "$sysroot"/boot/loader.0
-ln -s loader "$sysroot"/boot/loader.0
-
 ostree admin --sysroot="$sysroot" os-init $OSNAME
-ostree admin deploy master --karg=root=LABEL=$OSNAME --os=$OSNAME
 
-arch-chroot "$sysroot" extlinux -i
+ostree --repo="$sysroot"/ostree/repo pull-local "$ostree_dir" master
+
+ostree admin --sysroot="$sysroot" \
+    deploy master --karg=root=LABEL=$OSNAME --os=$OSNAME
+
+extlinux -i "$sysroot"
 
 umount /mnt/boot
 umount /mnt
+
+dd bs=440 count=1 conv=notrunc if=/usr/lib/syslinux/bios/mbr.bin of=/dev/loop0
 
 losetup -d /dev/loop0
 losetup -d /dev/loop1
