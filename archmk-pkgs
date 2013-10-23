@@ -35,9 +35,9 @@ do
         systemd-nspawn -D "$copy_dir" pacman -Suy --noconfirm
     fi
 
-    if [ -f "$repo_dir"/$REPO.db.tar.gz ]; then
+    if [ -f "$repo_dir"/$OSNAME.db.tar.gz ]; then
         repo_url=file:///archmk/repo
-        echo -e "\n[$REPO]\nSigLevel = Never\nServer = $repo_url" >> \
+        echo -e "\n[$OSNAME]\nSigLevel = Never\nServer = $repo_url" >> \
             "$copy_dir"/etc/pacman.conf
     fi
 
@@ -51,5 +51,5 @@ do
                  makepkg -ef; \
                  pkg_name=\$(ls -t *.pkg.tar.xz | head -n 1); \
                  cp -f \$pkg_name /repo;
-                 repo-add /repo/$REPO.db.tar.gz /repo/\$pkg_name"
+                 repo-add /repo/$OSNAME.db.tar.gz /repo/\$pkg_name"
 done
