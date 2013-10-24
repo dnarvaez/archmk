@@ -44,9 +44,9 @@ parted "$image_path" set 1 boot on
 modprobe loop
 
 losetup /dev/loop0 "$image_path" -o $((2048 * 512)) \
-    --sizelimit $((523264 * 512))
-losetup /dev/loop1 "$image_path" -o $((1048576 * 512)) \
-    --sizelimit $((4718592 * 512))
+    --sizelimit $((487424 * 512))
+losetup /dev/loop1 "$image_path" -o $((976896 * 512)) \
+    --sizelimit $((4393984 * 512))
 
 sysroot=/mnt
 
@@ -73,12 +73,13 @@ ostree --repo="$sysroot"/ostree/repo pull-local "$ostree_dir" master
 ostree admin --sysroot="$sysroot" \
     deploy master --karg=root=LABEL=$OSNAME --os=$OSNAME
 
-extlinux -i "$sysroot"
+extlinux -i "$sysroot"/boot
 
 umount /mnt/boot
 umount /mnt
 
-dd bs=440 count=1 conv=notrunc if=/usr/lib/syslinux/bios/mbr.bin of=/dev/loop0
-
 losetup -d /dev/loop0
 losetup -d /dev/loop1
+
+dd bs=440 count=1 conv=notrunc \
+    if=/usr/lib/syslinux/bios/mbr.bin of="$image_path"
