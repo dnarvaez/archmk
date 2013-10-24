@@ -43,10 +43,8 @@ parted "$image_path" set 1 boot on
 
 modprobe loop
 
-losetup /dev/loop0 "$image_path" -o $((2048 * 512)) \
-    --sizelimit $((487424 * 512))
-losetup /dev/loop1 "$image_path" -o $((976896 * 512)) \
-    --sizelimit $((4393984 * 512))
+losetup /dev/loop0 "$image_path" -o 1048576 --sizelimit 499121664
+losetup /dev/loop1 "$image_path" -o 500170752 --sizelimit 4499439104
 
 sysroot=/mnt
 
